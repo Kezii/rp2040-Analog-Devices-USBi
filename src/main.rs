@@ -80,7 +80,7 @@ impl AdauHal {
     }
 }
 
-struct ControlLogger {
+struct UsbControl {
     read_register: Option<u16>,
     adau_hal: AdauHal,
 }
@@ -107,7 +107,7 @@ impl UsbiRequest {
     }
 }
 
-impl Handler for ControlLogger {
+impl Handler for UsbControl {
     fn configured(&mut self, configured: bool) {
         debug!("Configured: {}", configured);
     }
@@ -212,19 +212,16 @@ async fn main(_spawner: Spawner) {
         &mut control_buf,
     );
 
-    // No Microsoft OS descriptors; match vendor-specific, driver-agnostic interface.
-
     let mut adau_hal = AdauHal { spi, ss, led };
 
     adau_hal.enable_spi().await;
 
-    // Log all control traffic (EP0)
-    static CONTROL_LOGGER: StaticCell<ControlLogger> = StaticCell::new();
-    let control_logger = CONTROL_LOGGER.init(ControlLogger {
+    static CONTROL_HANDLER: StaticCell<UsbControl> = StaticCell::new();
+    let control_handler = CONTROL_HANDLER.init(UsbControl {
         read_register: None,
         adau_hal,
     });
-    builder.handler(control_logger);
+    builder.handler(control_handler);
 
     // Match FS behavior: device advertises as Misc/IAD in FS, but single interface.
     // Keep composite_with_iads = true (default), which adds an IAD. That's fine; real FS shows an IAD too.
